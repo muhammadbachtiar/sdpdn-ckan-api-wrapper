@@ -1,0 +1,50 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Katalog mapping: 1 baris = 1 resource datastore CKAN yang ditayangkan ke SPLP.
+/// Kolom TANPA tanda "?" = MANDATORY. Kolom dengan "?" = OPTIONAL (null -> fallback di layer serializer).
+model DatasetMapping {
+  id Int @id @default(autoincrement())
+
+  // ---------- MANDATORY ----------
+  ckanResourceId   String @unique @map("ckan_resource_id") @db.VarChar(100)
+  namaData         String @map("nama_data") @db.VarChar(255)
+  tahun            Int
+  kodeUrusan       String @map("kode_urusan") @db.VarChar(20)
+  namaUrusan       String @map("nama_urusan") @db.VarChar(255)
+  kodeBidangUrusan String @map("kode_bidang_urusan") @db.VarChar(20)
+  namaBidangUrusan String @map("nama_bidang_urusan") @db.VarChar(255)
+
+  // ---------- OPTIONAL ----------
+  ckanPackageId      String?   @map("ckan_package_id") @db.VarChar(100)
+  namaIndikator      String?   @map("nama_indikator") @db.VarChar(255)
+  sumberReferensi    String?   @map("sumber_referensi") @db.VarChar(255)
+  kodeProdusenData   String?   @map("kode_produsen_data") @db.VarChar(50)
+  jadwalRelease      String?   @map("jadwal_release") @db.VarChar(100)
+  jadwalPemutakhiran String?   @map("jadwal_pemutakhiran") @db.VarChar(100)
+  jenisData          String?   @map("jenis_data") @db.VarChar(100)
+  kodeStandardData   String?   @map("kode_standard_data") @db.VarChar(100)
+  klasifikasiData    String?   @map("klasifikasi_data") @db.VarChar(50)
+  satuan             String?   @db.VarChar(50)
+  kategoriRad        String?   @map("kategori_rad") @db.VarChar(100)
+  statusPrioritas    String?   @map("status_prioritas") @db.VarChar(100)
+  tanggalData        DateTime? @map("tanggal_data") @db.Date
+  /// Jika null -> otomatis {WRAPPER_PUBLIC_URL}/api/v1/datalist/detail/?id={id}
+  endpointUrl        String?   @map("endpoint_url") @db.VarChar(500)
+  /// Override opsional skema field: { "kecamatan": { "data_type": "string", "length": 100, "klasifikasi_data": "terbuka" } }
+  fieldOverrides     Json?     @map("field_overrides")
+
+  // ---------- SISTEM ----------
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tahun, kodeBidangUrusan, isActive])
+  @@map("dataset_mappings")
+}

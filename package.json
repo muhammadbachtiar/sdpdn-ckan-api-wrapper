@@ -1,0 +1,41 @@
+{
+  "name": "sdpdn-ckan-api-wrapper",
+  "version": "1.0.0",
+  "description": "API WRAPPER CKAN TO SDPDN FORMAT FOR SPLP",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "dist/src/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "seed": "tsx prisma/seed.ts",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "axios": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "swagger-ui-express": "^5.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^26.6.5",
+    "@types/swagger-ui-express": "^4.1.0",
+    "prisma": "^6.19.3",
+    "tsx": "^4.0.0",
+    "typescript": "^7.0.2"
+  }
+}
