@@ -48,10 +48,17 @@ async function ckanGet<T>(path: string, params: Record<string, unknown>): Promis
   } catch (err) {
     if (err instanceof AppError) throw err;
     if (axios.isAxiosError(err)) {
+      console.error('[CKAN ERROR]', {
+        message: err.message,
+        code: err.code,
+        url: `${client.defaults.baseURL}${path}`,
+        status: err.response?.status,
+        data: err.response?.data,
+      });
       if (err.response?.status === 404) {
         throw notFound('Resource tidak ditemukan di CKAN');
       }
-      throw new AppError(502, 'Gagal menghubungi server CKAN');
+      throw new AppError(502, `Gagal menghubungi server CKAN (${err.code || err.message})`);
     }
     throw err;
   }
