@@ -7,7 +7,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1),
 
   SPLP_JWT_SECRET: z.string().min(1),
-  SPLP_JWT_ALGORITHM: z.enum(['HS256', 'HS384', 'HS512']).default('HS256'),
+  SPLP_JWT_ALGORITHM: z.enum(['HS256', 'HS384', 'HS512', 'RS256']).default('HS256'),
   SPLP_JWT_ISSUER: z.string().optional(),
   SPLP_JWT_AUDIENCE: z.string().optional(),
 

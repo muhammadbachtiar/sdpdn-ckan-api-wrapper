@@ -5,11 +5,46 @@ import { ZodError } from 'zod';
 import { env } from '../config/env';
 import { AppError, unauthorized } from '../utils/errors';
 
-/** Validasi PASIF: wrapper tidak menerbitkan token, hanya memverifikasi token dari SPLP. */
+/** Validasi PASIF: wrapper tidak menerbitkan token, memverifikasi token dari SPLP. */
 export function passiveJwt(req: Request, _res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  if (!header || !/^Bearer\s+\S+$/i.test(header)) return next(unauthorized());
-  const token = header.split(/\s+/)[1];
+  // Dukung token dari header Authorization, Internal-Key, atau X-JWT-Assertion
+  let token: string | undefined;
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && /^Bearer\s+\S+$/i.test(authHeader)) {
+    token = authHeader.split(/\s+/)[1];
+  } else if (typeof req.headers['internal-key'] === 'string' && req.headers['internal-key'].trim()) {
+    token = req.headers['internal-key'].trim();
+  } else if (typeof req.headers['x-jwt-assertion'] === 'string' && req.headers['x-jwt-assertion'].trim()) {
+    token = req.headers['x-jwt-assertion'].trim();
+  }
+
+  if (!token) {
+    return next(unauthorized());
+  }
+
+  // Decode struktur JWT untuk verifikasi format dan diagnostik
+  const decoded = jwt.decode(token, { complete: true });
+  if (!decoded || typeof decoded !== 'object') {
+    return next(unauthorized());
+  }
+
+  const payload = decoded.payload as { exp?: number; iss?: string; aud?: string | string[] };
+  if (payload?.exp && Date.now() >= payload.exp * 1000) {
+    return next(new AppError(401, 'Token SPLP sudah kadaluwarsa'));
+  }
+
+  // Jika SPLP_JWT_SECRET diset 'bypass' (mode onboarding saat secret resmi SPLP belum diterima)
+  if (env.SPLP_JWT_SECRET.toLowerCase() === 'bypass') {
+    console.log('[SPLP AUTH] Mode bypass aktif. Token diterima:', {
+      alg: decoded.header.alg,
+      kid: decoded.header.kid,
+      issuer: payload?.iss,
+      expiresAt: payload?.exp ? new Date(payload.exp * 1000).toISOString() : 'no-exp',
+    });
+    return next();
+  }
+
   try {
     jwt.verify(token, env.SPLP_JWT_SECRET, {
       algorithms: [env.SPLP_JWT_ALGORITHM],
