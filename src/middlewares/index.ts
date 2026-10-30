@@ -7,7 +7,7 @@ import { AppError, unauthorized } from '../utils/errors';
 
 /** Validasi PASIF: wrapper tidak menerbitkan token, memverifikasi token dari SPLP. */
 export function passiveJwt(req: Request, _res: Response, next: NextFunction) {
-  // Dukung token dari header Authorization, Internal-Key, atau X-JWT-Assertion
+  // 1. Ekstraksi token dari berbagai kemungkinan header yang dikirim oleh WSO2 / SPLP
   let token: string | undefined;
 
   const authHeader = req.headers.authorization;
@@ -17,13 +17,36 @@ export function passiveJwt(req: Request, _res: Response, next: NextFunction) {
     token = req.headers['internal-key'].trim();
   } else if (typeof req.headers['x-jwt-assertion'] === 'string' && req.headers['x-jwt-assertion'].trim()) {
     token = req.headers['x-jwt-assertion'].trim();
+  } else if (typeof req.headers['apikey'] === 'string' && req.headers['apikey'].trim()) {
+    token = req.headers['apikey'].trim();
   }
 
+  // 2. Jika mode bypass aktif (untuk onboarding saat secret SPLP belum diketahui)
+  if (env.SPLP_JWT_SECRET.toLowerCase() === 'bypass') {
+    if (token) {
+      const decoded = jwt.decode(token, { complete: true });
+      const payload = decoded && typeof decoded === 'object' ? (decoded.payload as Record<string, unknown>) : null;
+      console.log('[SPLP AUTH] Mode bypass aktif: Token ditemukan & diloloskan:', {
+        alg: decoded && typeof decoded === 'object' ? decoded.header.alg : 'unknown',
+        kid: decoded && typeof decoded === 'object' ? decoded.header.kid : undefined,
+        issuer: payload?.iss,
+      });
+    } else {
+      console.log('[SPLP AUTH] Mode bypass aktif: Tidak ada token pada request, diloloskan:', {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        incomingHeaders: Object.keys(req.headers),
+      });
+    }
+    return next();
+  }
+
+  // 3. Mode produksi ketat (SPLP_JWT_SECRET bukan 'bypass')
   if (!token) {
     return next(unauthorized());
   }
 
-  // Decode struktur JWT untuk verifikasi format dan diagnostik
+  // Decode struktur JWT untuk verifikasi format dan masa aktif
   const decoded = jwt.decode(token, { complete: true });
   if (!decoded || typeof decoded !== 'object') {
     return next(unauthorized());
@@ -32,17 +55,6 @@ export function passiveJwt(req: Request, _res: Response, next: NextFunction) {
   const payload = decoded.payload as { exp?: number; iss?: string; aud?: string | string[] };
   if (payload?.exp && Date.now() >= payload.exp * 1000) {
     return next(new AppError(401, 'Token SPLP sudah kadaluwarsa'));
-  }
-
-  // Jika SPLP_JWT_SECRET diset 'bypass' (mode onboarding saat secret resmi SPLP belum diterima)
-  if (env.SPLP_JWT_SECRET.toLowerCase() === 'bypass') {
-    console.log('[SPLP AUTH] Mode bypass aktif. Token diterima:', {
-      alg: decoded.header.alg,
-      kid: decoded.header.kid,
-      issuer: payload?.iss,
-      expiresAt: payload?.exp ? new Date(payload.exp * 1000).toISOString() : 'no-exp',
-    });
-    return next();
   }
 
   try {
